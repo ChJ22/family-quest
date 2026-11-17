@@ -1,0 +1,6 @@
+// Austauschbare Datenspeicherung: später durch einen Supabase-Adapter ersetzen.
+const KEY='familyquest-v1';
+export const demo={members:[{id:'p1',name:'Elternteil 1',role:'parent',xp:0,coins:0},{id:'p2',name:'Elternteil 2',role:'parent',xp:0,coins:0},{id:'c1',name:'Kind 1',role:'child',xp:0,coins:0},{id:'c2',name:'Kind 2',role:'child',xp:0,coins:0},{id:'c3',name:'Kind 3',role:'child',xp:0,coins:0}],tasks:[{id:'t1',title:'Spülmaschine ausräumen',memberId:'c1',xp:10,coins:5,status:'open',repeat:'daily',type:'regular'},{id:'t2',title:'Müll rausbringen',memberId:'c2',xp:15,coins:10,status:'open',repeat:'weekly',type:'bonus'},{id:'t3',title:'Einkaufen',memberId:'p1',xp:20,coins:5,status:'open',repeat:'weekly',type:'regular'},{id:'t4',title:'Wäsche waschen',memberId:'p2',xp:15,coins:5,status:'open',repeat:'weekly',type:'regular'}],rewards:[{id:'r1',title:'Filmabend aussuchen',cost:30},{id:'r2',title:'Wunschaktivität',cost:60}],history:[]};
+export const localStore={async load(){try{return JSON.parse(localStorage.getItem(KEY))||structuredClone(demo)}catch{return structuredClone(demo)}},async save(data){localStorage.setItem(KEY,JSON.stringify(data))}};
+// Zukünftige Schnittstelle: const store = createSupabaseStore(client, familyId);
+// Implementierung benötigt später Auth, family_id, Row Level Security und Tabellen für members/tasks/rewards/history.
