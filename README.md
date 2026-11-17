@@ -1,28 +1,24 @@
-# Family Quest – Basisversion 0.2
+# Family Quest – Basisversion 0.3
 
-Installierbare Web-App als Ausgangspunkt für die gemeinsame Weiterentwicklung.
+Installierbare PWA-Basis mit bestehendem App-Icon und lokalem Speicheradapter.
 
-## Start
+## Neu in 0.3
+- Monats-XP: Reset beim ersten Öffnen in einem neuen Kalendermonat; Monatsabschluss im Archiv
+- Karriere-XP: dauerhaft; Münzen: dauerhaft, auch über Monatsgrenzen
+- Kinderlevel: 1 (0 XP), 2 (100), 3 (250), 4 (450), 5 (700)
+- Level 3: Aufgaben vorschlagen; Level 4: eigene Aufgaben erstellen, zunächst mit Elternfreigabe; Level 5: auch anderen Familienmitgliedern Aufgaben vorschlagen
+- Eltern: jederzeit volle Verwaltungsrechte, bestätigen Erledigungen und Vorschläge
+- Profilumschalter zum Ausprobieren der Rollen; KEINE echte Authentifizierung
+- Bestehende lokale Daten aus `familyquest-v1` werden beim Laden um Karriere-XP/Monatsinformationen ergänzt.
 
-Im Projektordner einen lokalen Webserver starten, z. B. `python3 -m http.server 8000`, und `http://localhost:8000` öffnen. Das direkte Öffnen der HTML-Datei per `file://` reicht wegen ES-Modulen nicht aus. Für den Zugriff vom iPhone aus ist später HTTPS-Hosting sinnvoll.
+## GitHub Pages
+Repository `family-quest` anlegen, **Inhalt dieses Ordners** (nicht den Ordner selbst) ins Repository-Hauptverzeichnis hochladen. Unter Settings → Pages: Deploy from a branch, `main`, `/(root)` wählen. `index.html` muss im Hauptverzeichnis liegen.
 
-## Bereits umgesetzt
+## Lokal testen
+Mit einem lokalen HTTP-Server starten, z. B. `python -m http.server 8000` im Projektordner; dann `http://localhost:8000` öffnen. ES-Module funktionieren nicht zuverlässig über `file://`.
 
-- Fünf Beispielprofile (zwei Eltern, drei Kinder), erweiterbar
-- Aufgaben mit Zuweisung, regulär/Bonus, Wiederholungskennzeichnung
-- Erledigt melden und manuell bestätigen
-- XP, Level und Bonusmünzen
-- Belohnungen anlegen und einlösen
-- Lokale Persistenz per localStorage
-- Neues, reduziertes App-Icon als PNG (192 und 512 Pixel), Apple-Touch-Icon und PWA-Manifest
+## Spätere Datenbank
+`storage.js` ist der lokale Adapter mit `load()` / `save()`. Für Supabase brauchen wir echte Authentifizierung, Familienzuordnung (`family_id`), serverseitige Rollenprüfung / Row Level Security, sichere Transaktionen für XP/Münzen, Monatsabschluss und Synchronisierung. Die Demo-Profilumschaltung bietet **keine Zugriffssicherheit**.
 
-## Nächste Schritte
-
-1. Supabase Auth und Familienmitgliedschaft mit Einladungen
-2. Datenmodell mit `families`, `profiles`, `memberships`, `tasks`, `task_completions`, `rewards`, `redemptions`
-3. Row Level Security: Familienisolation, Elternrollen serverseitig prüfen; keine Punktegutschrift ohne autorisierte Bestätigung
-4. Wiederkehrende Aufgaben mit Fälligkeiten und Zeitfenstern
-5. Offline-Synchronisierung, Konfliktbehandlung und PWA-Service-Worker
-6. Elternbereich mit gesicherter Freigabe und Benutzerrollen
-
-**Sicherheitshinweis:** Die Demo hat noch keine echte Zugriffskontrolle. Jede Person mit Zugang zum Browser kann Aufgaben bestätigen. Die Demo nicht für sensible Daten oder als produktive Mehrbenutzer-App verwenden.
+## Noch offen
+Automatische tägliche/wöchentliche Wiederholung; eigene Aufgabenrechte und Challenges feiner gestalten; vollständige Elternprüfung für Belohnungen; Monatsauszeichnungen; echte Mehrgeräte-Synchronisierung.
