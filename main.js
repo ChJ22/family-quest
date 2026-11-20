@@ -1,8 +1,86 @@
-import {localStore,level,thresholds,rollover,monthKey} from './storage.js';
-const store=localStore;let state=await store.load();let actorId=state.members[0]?.id;const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const uid=()=>crypto.randomUUID();const member=id=>state.members.find(m=>m.id===id);const actor=()=>member(actorId);const parent=()=>actor()?.role==='parent';const lvl=()=>level(actor()?.xp||0);const canPropose=()=>parent()||lvl()>=3;const canCreate=()=>parent()||lvl()>=3;const canAssign=()=>parent()||lvl()>=3;const canReward=()=>parent()||lvl()>=2;const opts=()=>state.members.map(m=>`<option value="${esc(m.id)}">${esc(m.name)} (${m.role==='parent'?'Eltern':'Kind'})</option>`).join('');
-async function commit(){await store.save(state);render()}
-function taskHtml(t){const m=member(t.memberId),status=t.status==='open'?'Offen':t.status==='pending'?'Wartet auf Bestätigung':t.status==='proposed'?'Vorschlag wartet auf Freigabe':'Erledigt';return `<div class="task"><div><strong>${esc(t.title)}</strong><small>${esc(m?.name||'Unbekannt')} · ${t.type==='bonus'?'Bonus':'Regulär'} · ${t.repeat==='daily'?'Täglich':t.repeat==='weekly'?'Wöchentlich':'Einmalig'} · ${m?.role==='child'?t.xp+' XP · ':''}${t.coins} Münzen</small><span class="pill">${status}</span></div><div class="actions">${t.status==='open'&&(parent()||t.memberId===actorId)?`<button data-action="complete" data-id="${t.id}">Erledigt melden</button>`:''}${parent()&&t.status==='pending'?`<button data-action="approve" data-id="${t.id}">Bestätigen</button><button class="secondary" data-action="reject" data-id="${t.id}">Ablehnen</button>`:''}${parent()&&t.status==='proposed'?`<button data-action="acceptProposal" data-id="${t.id}">Vorschlag freigeben</button><button class="secondary" data-action="rejectProposal" data-id="${t.id}">Ablehnen</button>`:''}${parent()?`<button class="danger" data-action="deleteTask" data-id="${t.id}">Löschen</button>`:''}</div></div>`}
-function render(){if(rollover(state)){store.save(state)}const current=actor();$('actor').innerHTML=opts();$('actor').value=actorId;$('access').textContent=parent()?'Elternkonto · volle Verwaltungsrechte':`Kinderprofil · Level ${lvl()} · ${canCreate()?'Aufgaben für Familienmitglieder vorschlagen':canReward()?'Belohnungen vorschlagen':'Eigene Aufgaben erledigen'}`;$('month').textContent=state.month;$('taskCreator').hidden=!canPropose();$('rewardCreator').hidden=!canReward();$('rewardSubmit').textContent=parent()?'Belohnung hinzufügen':'Belohnung zur Freigabe vorschlagen';$('memberCreator').hidden=!parent();$('taskSubmit').textContent=parent()?'Aufgabe hinzufügen':'Vorschlag zur Elternfreigabe senden';$('taskMember').innerHTML=opts();$('taskMember').value=state.members.some(m=>m.id===$('taskMember').dataset.selected)?$('taskMember').dataset.selected:actorId;$('taskMember').disabled=!canAssign();$('taskPoints').hidden=!parent();$('taskType').disabled=!parent();$('taskRepeat').disabled=!parent();const open=state.tasks.filter(t=>t.status!=='done');$('stats').innerHTML=`<div class="card"><div class="muted">Familienmitglieder</div><div class="stat">${state.members.length}</div></div><div class="card"><div class="muted">Offene Aufgaben</div><div class="stat">${open.length}</div></div><div class="card"><div class="muted">Monats-XP</div><div class="stat">${state.members.filter(m=>m.role==='child').reduce((s,m)=>s+m.xp,0)}</div></div><div class="card"><div class="muted">Münzguthaben</div><div class="stat">${state.members.reduce((s,m)=>s+m.coins,0)}</div></div>`;$('dashboardTasks').innerHTML=open.length?open.slice(0,6).map(taskHtml).join(''):'<p class="empty">Alles erledigt!</p>';$('taskList').innerHTML=state.tasks.map(taskHtml).join('')||'<p class="empty">Noch keine Aufgaben.</p>';$('rewardMember').innerHTML=opts();$('rewardMember').value=parent()&&state.members.some(m=>m.id===$('rewardMember').dataset.selected)?$('rewardMember').dataset.selected:actorId;$('rewardMember').disabled=!parent();const m=member($('rewardMember').value);$('rewardList').innerHTML=state.rewards.map(r=>`<div class="task"><div><strong>${esc(r.title)}</strong><small>${r.cost} Münzen · Guthaben: ${m?.coins||0}${r.status==='proposed'?' · Wartet auf Elternfreigabe':''}</small></div><div class="actions">${r.status==='proposed'?(parent()?`<button data-action="approveReward" data-id="${r.id}">Freigeben</button><button class="secondary" data-action="rejectReward" data-id="${r.id}">Ablehnen</button>`:''):`<button data-action="redeem" data-id="${r.id}" ${m?.coins>=r.cost?'':'disabled'}>Einlösen</button>`}${parent()?`<button class="danger" data-action="deleteReward" data-id="${r.id}">Löschen</button>`:''}</div></div>`).join('')||'<p class="empty">Noch keine Belohnungen.</p>';$('members').innerHTML=state.members.map(m=>`<div class="card"><h3>${esc(m.name)}</h3><span class="pill">${m.role==='parent'?'Elternteil':'Kind'}</span><p>${m.role==='child'?'⭐ '+m.xp+' Monats-XP · ':''}🪙 ${m.coins} Münzen</p><small class="muted">${m.role==='child'?'Level '+level(m.xp)+' · Karriere-XP '+m.careerXp:'Volle Verwaltungsrechte · kein XP-System'}</small></div>`).join('');$('levelInfo').innerHTML=thresholds.map((xp,i)=>`<div class="level"><strong>Level ${i+1} · ${xp} XP</strong><span>${['Aufgaben erledigen','Eigene Belohnungen vorschlagen (Elternfreigabe)','Wochenendaufgaben für alle vorschlagen (Elternfreigabe)','Familien-Challenges vorschlagen'][i]}</span></div>`).join('');$('archive').innerHTML=state.archive.slice(-3).reverse().map(a=>`<p><strong>${esc(a.month)}</strong>: ${a.members.map(m=>`${esc(m.name)} ${m.xp} XP`).join(' · ')}</p>`).join('')||'<p class="muted">Noch kein Monatsabschluss.</p>'}
-document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button,section').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active')}));$('actor').addEventListener('change',e=>{actorId=e.target.value;render()});$('taskMember').addEventListener('change',e=>{e.target.dataset.selected=e.target.value});$('rewardMember').addEventListener('change',e=>{e.target.dataset.selected=e.target.value;render()});
-$('taskForm').addEventListener('submit',async e=>{e.preventDefault();if(!canPropose())return alert('Aufgaben können erst ab Level 3 vorgeschlagen werden.');const f=new FormData(e.target),target=parent()||canAssign()?f.get('memberId'):actorId;state.tasks.push({id:uid(),title:String(f.get('title')).trim(),memberId:target,type:parent()?f.get('type'):'bonus',repeat:parent()?f.get('repeat'):'once',xp:parent()?Number(f.get('xp')):10,coins:parent()?Number(f.get('coins')):5,status:parent()?'open':'proposed',createdBy:actorId});e.target.reset();await commit()});$('rewardForm').addEventListener('submit',async e=>{e.preventDefault();if(!canReward())return;const f=new FormData(e.target);state.rewards.push({id:uid(),title:String(f.get('title')).trim(),cost:Number(f.get('cost')),status:parent()?'active':'proposed',createdBy:actorId});e.target.reset();await commit()});$('memberForm').addEventListener('submit',async e=>{e.preventDefault();if(!parent())return;const f=new FormData(e.target);state.members.push({id:uid(),name:String(f.get('name')).trim(),role:f.get('role'),xp:0,careerXp:0,coins:0});e.target.reset();await commit()});
-document.addEventListener('click',async e=>{const b=e.target.closest('[data-action]');if(!b)return;const {action,id}=b.dataset,t=state.tasks.find(x=>x.id===id);if(action==='complete'&&t&&t.status==='open'&&(parent()||t.memberId===actorId))t.status='pending';if(action==='approve'&&parent()&&t?.status==='pending'){t.status='done';const m=member(t.memberId);if(m){if(m.role==='child'){m.xp+=t.xp;m.careerXp+=t.xp}m.coins+=t.coins}state.history.push({id:uid(),kind:'task',taskId:id,memberId:t.memberId,xp:t.xp,coins:t.coins,date:new Date().toISOString()})}if(action==='reject'&&parent()&&t?.status==='pending')t.status='open';if(action==='acceptProposal'&&parent()&&t?.status==='proposed')t.status='open';if(action==='rejectProposal'&&parent()&&t?.status==='proposed')state.tasks=state.tasks.filter(x=>x.id!==id);if(action==='deleteTask'&&parent()&&confirm('Aufgabe löschen?'))state.tasks=state.tasks.filter(x=>x.id!==id);if(action==='approveReward'&&parent()){const r=state.rewards.find(x=>x.id===id);if(r?.status==='proposed')r.status='active'}if(action==='rejectReward'&&parent())state.rewards=state.rewards.filter(x=>x.id!==id||x.status!=='proposed');if(action==='deleteReward'&&parent()&&confirm('Belohnung löschen?'))state.rewards=state.rewards.filter(x=>x.id!==id);if(action==='redeem'){const r=state.rewards.find(x=>x.id===id),m=member(parent()?$('rewardMember').value:actorId);if(r&&r.status!=='proposed'&&m&&m.coins>=r.cost&&confirm(`${r.title} für ${m.name} einlösen?`)){m.coins-=r.cost;state.history.push({id:uid(),kind:'reward',rewardId:id,memberId:m.id,cost:r.cost,date:new Date().toISOString()})}}await commit()});render();
+import { supabase, loadFamily, action, createFamily, joinParent, parentInvite, createChild, level, thresholds, childEmail } from './storage.js';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let state = null;
+const actor = () => state?.self;
+const parent = () => actor()?.role === 'parent';
+const member = id => state?.members.find(m => m.id === id);
+const opts = () => state.members.map(m => `<option value="${esc(m.id)}">${esc(m.name)} (${m.role==='parent'?'Eltern':'Kind'})</option>`).join('');
+const message = text => { $('message').textContent = text || ''; };
+const busy = async fn => { message(''); try { await fn(); } catch (e) { console.error(e); message(e.message || 'Fehler beim Speichern'); } };
+const canTask = () => parent() || level(actor().xp) >= 3;
+const canReward = () => parent() || level(actor().xp) >= 2;
+
+async function refresh() {
+  state = await loadFamily();
+  $('authPanel').hidden = !!(await supabase.auth.getUser()).data.user;
+  $('setupPanel').hidden = !state?.needsFamily;
+  $('appPanel').hidden = !state || !!state.needsFamily;
+  if (state && !state.needsFamily) render();
+}
+function taskHtml(t) {
+  const m=member(t.memberId);
+  const status={open:'Offen',pending:'Wartet auf Bestätigung',proposed:'Vorschlag wartet auf Freigabe',done:'Erledigt'}[t.status];
+  return `<div class="task"><div><strong>${esc(t.title)}</strong><small>${esc(m?.name || 'Unbekannt')} · ${t.type==='bonus'?'Bonus':'Regulär'} · ${t.repeat==='daily'?'Täglich':t.repeat==='weekly'?'Wöchentlich':'Einmalig'} · ${m?.role==='child'?t.xp+' XP · ':''}${t.coins} Münzen</small><span class="pill">${status}</span></div><div class="actions">${t.status==='open'&&(parent()||t.memberId===actor().id)?`<button data-action="complete" data-id="${t.id}">Erledigt melden</button>`:''}${parent()&&t.status==='pending'?`<button data-action="approve" data-id="${t.id}">Bestätigen</button><button class="secondary" data-action="reject" data-id="${t.id}">Ablehnen</button>`:''}${parent()&&t.status==='proposed'?`<button data-action="acceptProposal" data-id="${t.id}">Vorschlag freigeben</button><button class="secondary" data-action="rejectProposal" data-id="${t.id}">Ablehnen</button>`:''}${parent()?`<button class="danger" data-action="deleteTask" data-id="${t.id}">Löschen</button>`:''}</div></div>`;
+}
+function render() {
+  const a=actor();
+  $('familyTitle').textContent = state.family.name + ' · ' + a.name;
+  $('access').textContent = parent()?'Elternkonto · volle Verwaltungsrechte':`Kinderkonto · Level ${level(a.xp)} · ${canTask()?'Aufgaben vorschlagen':canReward()?'Belohnungen vorschlagen':'Eigene Aufgaben erledigen'}`;
+  $('month').textContent = state.month;
+  $('taskCreator').hidden = !canTask();
+  $('rewardCreator').hidden = !canReward();
+  $('memberCreator').hidden = !parent();
+  $('taskSubmit').textContent = parent()?'Aufgabe hinzufügen':'Aufgabenvorschlag senden';
+  $('rewardSubmit').textContent = parent()?'Belohnung hinzufügen':'Belohnung vorschlagen';
+  $('taskMember').innerHTML = opts();
+  $('taskMember').value = state.members.some(m=>m.id===$('taskMember').dataset.selected)?$('taskMember').dataset.selected:a.id;
+  $('taskPoints').hidden = !parent();
+  $('taskType').disabled = !parent(); $('taskRepeat').disabled = !parent();
+  const open=state.tasks.filter(t=>t.status!=='done');
+  $('stats').innerHTML = `<div class="card"><div class="muted">Familienmitglieder</div><div class="stat">${state.members.length}</div></div><div class="card"><div class="muted">Offene Aufgaben</div><div class="stat">${open.length}</div></div><div class="card"><div class="muted">Monats-XP</div><div class="stat">${state.members.filter(m=>m.role==='child').reduce((s,m)=>s+m.xp,0)}</div></div><div class="card"><div class="muted">Münzguthaben</div><div class="stat">${state.members.reduce((s,m)=>s+m.coins,0)}</div></div>`;
+  $('dashboardTasks').innerHTML=open.length?open.slice(0,6).map(taskHtml).join(''):'<p class="empty">Alles erledigt!</p>';
+  $('taskList').innerHTML=state.tasks.map(taskHtml).join('')||'<p class="empty">Noch keine Aufgaben.</p>';
+  $('rewardMember').innerHTML=opts();
+  $('rewardMember').value=parent()&&state.members.some(m=>m.id===$('rewardMember').dataset.selected)?$('rewardMember').dataset.selected:a.id;
+  $('rewardMember').disabled=!parent();
+  const target=member($('rewardMember').value);
+  $('rewardList').innerHTML=state.rewards.map(r=>`<div class="task"><div><strong>${esc(r.title)}</strong><small>${r.cost} Münzen · Guthaben: ${target?.coins||0}${r.status==='proposed'?' · Wartet auf Elternfreigabe':''}</small></div><div class="actions">${r.status==='proposed'?(parent()?`<button data-action="approveReward" data-id="${r.id}">Freigeben</button><button class="secondary" data-action="rejectReward" data-id="${r.id}">Ablehnen</button>`:''):`<button data-action="redeem" data-id="${r.id}" ${target?.coins>=r.cost?'':'disabled'}>Einlösen</button>`}${parent()?`<button class="danger" data-action="deleteReward" data-id="${r.id}">Löschen</button>`:''}</div></div>`).join('')||'<p class="empty">Noch keine Belohnungen.</p>';
+  $('members').innerHTML=state.members.map(m=>`<div class="card"><h3>${esc(m.name)}</h3><span class="pill">${m.role==='parent'?'Elternteil':'Kind'}</span><p>${m.role==='child'?'⭐ '+m.xp+' Monats-XP · ':''}🪙 ${m.coins} Münzen</p><small class="muted">${m.role==='child'?'Level '+level(m.xp)+' · Karriere-XP '+m.careerXp:'Volle Verwaltungsrechte · kein XP-System'}</small></div>`).join('');
+  $('levelInfo').innerHTML=thresholds.map((xp,i)=>`<div class="level"><strong>Level ${i+1} · ${xp} XP</strong><span>${['Aufgaben erledigen','Eigene Belohnungen vorschlagen (Elternfreigabe)','Wochenendaufgaben für alle vorschlagen (Elternfreigabe)','Familien-Challenges (geplant)'][i]}</span></div>`).join('');
+  $('archive').innerHTML=state.archive.map(a=>`<p>${esc(a.month)} · ${esc(member(a.member_id)?.name || 'Mitglied')} · ${a.xp} XP</p>`).join('')||'<p class="muted">Noch kein Monatsabschluss.</p>';
+}
+$('authMode').addEventListener('change',()=>{
+  const reg=$('authMode').value==='register';
+  $('loginType').hidden=reg;
+  if(reg)$('loginType').value='email';
+  $('authIdentity').placeholder=reg||$('loginType').value==='email'?'E-Mail-Adresse':'Benutzername';
+  $('authPassword').autocomplete=reg?'new-password':'current-password';
+});
+$('loginType').addEventListener('change',()=>{$('authIdentity').placeholder=$('loginType').value==='email'?'E-Mail-Adresse':'Benutzername';});
+$('authForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{
+  const reg=$('authMode').value==='register';
+  const identity=$('authIdentity').value.trim();
+  const email=reg||$('loginType').value==='email'?identity:childEmail(identity);
+  const password=$('authPassword').value;
+  const result=reg?await supabase.auth.signUp({email,password}):await supabase.auth.signInWithPassword({email,password});
+  if(result.error)throw result.error;
+  if(reg&&!result.data.session)message('Bitte bestätige die Registrierung über den Link in deiner E-Mail. Danach anmelden.');
+  else await refresh();
+});});
+$('createFamilyForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await createFamily(f.get('family'),f.get('name'));await refresh();});});
+$('joinFamilyForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await joinParent(f.get('code'),f.get('name'));await refresh();});});
+$('logout').addEventListener('click',()=>busy(async()=>{await supabase.auth.signOut();state=null;await refresh();}));
+$('refresh').addEventListener('click',()=>busy(refresh));
+$('inviteParent').addEventListener('click',()=>busy(async()=>{$('inviteOutput').textContent='Einladungscode (nur persönlich weitergeben): '+await parentInvite();}));
+$('memberForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await createChild(f.get('name'),f.get('username'),f.get('password'));e.target.reset();await refresh();message('Kinderkonto erstellt. Zugangsdaten sicher aufbewahren.');});});
+$('taskForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_task',null,{title:f.get('title'),memberId:f.get('memberId'),type:f.get('type'),repeat:f.get('repeat'),xp:Number(f.get('xp')),coins:Number(f.get('coins'))});e.target.reset();await refresh();});});
+$('rewardForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_reward',null,{title:f.get('title'),cost:Number(f.get('cost'))});e.target.reset();await refresh();});});
+$('taskMember').addEventListener('change',e=>{e.target.dataset.selected=e.target.value;});
+$('rewardMember').addEventListener('change',e=>{e.target.dataset.selected=e.target.value;render();});
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button,section').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active');}));
+document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;const {action:act,id}=b.dataset;
+  if(['deleteTask','deleteReward','redeem'].includes(act)&&!confirm(act==='redeem'?'Belohnung für Münzen einlösen?':'Wirklich löschen?'))return;
+  busy(async()=>{await action(act,id,act==='redeem'?{memberId:$('rewardMember').value}:{});await refresh();});
+});
+await busy(refresh);
