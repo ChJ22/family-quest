@@ -50,14 +50,25 @@ function render() {
   $('levelInfo').innerHTML=thresholds.map((xp,i)=>`<div class="level"><strong>Level ${i+1} · ${xp} XP</strong><span>${['Aufgaben erledigen','Eigene Belohnungen vorschlagen (Elternfreigabe)','Wochenendaufgaben für alle vorschlagen (Elternfreigabe)','Familien-Challenges (geplant)'][i]}</span></div>`).join('');
   $('archive').innerHTML=state.archive.map(a=>`<p>${esc(a.month)} · ${esc(member(a.member_id)?.name || 'Mitglied')} · ${a.xp} XP</p>`).join('')||'<p class="muted">Noch kein Monatsabschluss.</p>';
 }
-$('authMode').addEventListener('change',()=>{
-  const reg=$('authMode').value==='register';
-  $('loginType').hidden=reg;
-  if(reg)$('loginType').value='email';
-  $('authIdentity').placeholder=reg||$('loginType').value==='email'?'E-Mail-Adresse':'Benutzername';
-  $('authPassword').autocomplete=reg?'new-password':'current-password';
-});
-$('loginType').addEventListener('change',()=>{$('authIdentity').placeholder=$('loginType').value==='email'?'E-Mail-Adresse':'Benutzername';});
+// Anmeldeformular für Eltern und Kinder synchron halten.
+function updateAuthFields() {
+  const registering = $('authMode').value === 'register';
+  const childLogin = !registering && $('loginType').value === 'child';
+  $('loginType').hidden = registering;
+  if (registering) $('loginType').value = 'email';
+  const identity = $('authIdentity');
+  identity.placeholder = childLogin ? 'Benutzername des Kindes' : 'E-Mail-Adresse';
+  identity.setAttribute('aria-label', childLogin ? 'Benutzername des Kindes' : 'E-Mail-Adresse');
+  identity.autocomplete = childLogin ? 'username' : 'email';
+  identity.inputMode = childLogin ? 'text' : 'email';
+  $('authPassword').autocomplete = registering ? 'new-password' : 'current-password';
+  $('authForm').querySelector('button[type="submit"], button:not([type])').textContent = registering ? 'Elternkonto registrieren' : 'Anmelden';
+}
+$('authMode').addEventListener('change', updateAuthFields);
+$('authMode').addEventListener('input', updateAuthFields);
+$('loginType').addEventListener('change', updateAuthFields);
+$('loginType').addEventListener('input', updateAuthFields);
+updateAuthFields();
 $('authForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{
   const reg=$('authMode').value==='register';
   const identity=$('authIdentity').value.trim();
