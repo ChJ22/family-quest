@@ -106,7 +106,30 @@ $('inviteCopyButton').addEventListener('click',()=>busy(async()=>{
   await navigator.clipboard.writeText(parentInviteText(currentParentInvite));
   message('Einladung kopiert.');
 }));
-$('memberForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await createChild(f.get('name'),f.get('username'),f.get('password'));e.target.reset();await refresh();message('Kinderkonto erstellt. Zugangsdaten sicher aufbewahren.');});});
+$('memberForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const form=e.currentTarget;
+  const result=$('childResult');
+  const button=$('createChildButton');
+  const f=new FormData(form);
+  button.disabled=true;
+  result.style.color='#24425f';
+  result.textContent='Kinderkonto wird erstellt …';
+  try {
+    await createChild(f.get('name'),f.get('username'),f.get('password'));
+    result.style.color='#176534';
+    result.textContent='Kinderkonto erfolgreich erstellt. Zugangsdaten sicher aufbewahren.';
+    form.reset();
+    try { await refresh(); } catch(err) {
+      console.error('Aktualisierung nach erfolgreicher Erstellung fehlgeschlagen:',err);
+      result.textContent+=' Die Familienliste konnte noch nicht aktualisiert werden. Bitte auf „Aktualisieren“ tippen.';
+    }
+  } catch(err) {
+    console.error('Kinderkonto-Erstellung fehlgeschlagen:',err);
+    result.style.color='#a22';
+    result.textContent='Fehler: '+(err.message || 'Unbekannter Fehler');
+  } finally { button.disabled=false; }
+});
 $('taskForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_task',null,{title:f.get('title'),memberId:f.get('memberId'),type:f.get('type'),repeat:f.get('repeat'),xp:Number(f.get('xp')),coins:Number(f.get('coins'))});e.target.reset();await refresh();});});
 $('rewardForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_reward',null,{title:f.get('title'),cost:Number(f.get('cost'))});e.target.reset();await refresh();});});
 $('taskMember').addEventListener('change',e=>{e.target.dataset.selected=e.target.value;});

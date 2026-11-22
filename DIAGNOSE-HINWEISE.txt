@@ -1,0 +1,4 @@
+Family Quest Diagnoseversion 17.
+Nach Upload aller Dateien auf GitHub: Kinderkonto mit NEUEM Testbenutzernamen erstellen.
+Die Meldung erscheint direkt unter dem Button. Bitte nur die Fehlermeldung teilen, keine Passwörter.
+Keine Änderungen an Supabase erforderlich.

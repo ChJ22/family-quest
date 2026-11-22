@@ -44,8 +44,25 @@ export async function parentInvite() {
   return data;
 }
 export async function createChild(name,username,password) {
+  const {data:{session},error:sessionError}=await supabase.auth.getSession();
+  if (sessionError || !session?.access_token) throw Error('Keine gültige Anmeldung gefunden. Bitte erneut als Elternteil anmelden.');
   const {data,error}=await supabase.functions.invoke('create-child',{body:{name,username,password}});
-  if (error) throw error;
+  if (error) {
+    let detail='';
+    const response=error.context;
+    if (response instanceof Response) {
+      try {
+        const payload=await response.clone().json();
+        detail=typeof payload?.error==='string'?payload.error:'';
+      } catch { /* Antwort ist kein JSON */ }
+      const code=response.status;
+      throw Error(`Kinderkonto konnte nicht erstellt werden (HTTP ${code}). ${detail || 'Bitte die Funktionsaufrufe in Supabase prüfen.'}`);
+    }
+    if (error.name==='FunctionsFetchError' || error.name==='FunctionsRelayError')
+      throw Error('Die Verbindung zur Supabase-Funktion ist fehlgeschlagen. Mögliche Ursache: CORS oder Netzwerk. Bitte die Edge-Function-Einstellungen prüfen.');
+    throw Error(error.message || 'Unbekannter Fehler beim Funktionsaufruf.');
+  }
   if (data?.error) throw Error(data.error);
+  if (!data?.ok) throw Error('Die Funktion hat keine erfolgreiche Kontoerstellung bestätigt.');
   return data;
 }
