@@ -13,7 +13,9 @@ const canReward = () => parent() || level(actor().xp) >= 2;
 
 async function refresh() {
   state = await loadFamily();
-  $('authPanel').hidden = !!(await supabase.auth.getUser()).data.user;
+  const { data: { user } } = await supabase.auth.getUser();
+  $('authPanel').hidden = !!user;
+  $('logout').hidden = !user;
   $('setupPanel').hidden = !state?.needsFamily;
   $('appPanel').hidden = !state || !!state.needsFamily;
   if (state && !state.needsFamily) render();
