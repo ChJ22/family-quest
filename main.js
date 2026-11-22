@@ -85,7 +85,27 @@ $('createFamilyForm').addEventListener('submit',e=>{e.preventDefault();busy(asyn
 $('joinFamilyForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await joinParent(f.get('code'),f.get('name'));await refresh();});});
 $('logout').addEventListener('click',()=>busy(async()=>{await supabase.auth.signOut();state=null;await refresh();}));
 $('refresh').addEventListener('click',()=>busy(refresh));
-$('inviteParent').addEventListener('click',()=>busy(async()=>{$('inviteOutput').textContent='Einladungscode (nur persönlich weitergeben): '+await parentInvite();}));
+// Einladungscode für ein zweites Elternteil: per E-Mail oder Kopie weitergeben.
+let currentParentInvite = '';
+const parentInviteText = code => `Du bist zu unserer Familie in Family Quest eingeladen.\n\n1. Öffne https://chj22.github.io/family-quest/\n2. Registriere dich als Elternteil mit deiner eigenen E-Mail-Adresse.\n3. Wähle nach der Anmeldung „Als zweiter Elternteil beitreten“.\n4. Gib diesen Einladungscode ein: ${code}\n\nDer Code ist 24 Stunden gültig. Bitte gib ihn nicht an andere Personen weiter.`;
+$('inviteParent').addEventListener('click',()=>busy(async()=>{
+  currentParentInvite = await parentInvite();
+  $('inviteOutput').textContent = 'Einladungscode (24 Stunden gültig): ' + currentParentInvite;
+  $('inviteActions').hidden = false;
+}));
+$('inviteEmailButton').addEventListener('click',()=>{
+  if (!currentParentInvite) { message('Bitte zuerst einen Einladungscode erzeugen.'); return; }
+  const field = $('inviteEmail');
+  if (!field.value.trim() || !field.checkValidity()) { field.reportValidity(); message('Bitte eine gültige E-Mail-Adresse eingeben.'); return; }
+  const subject = encodeURIComponent('Einladung zu Family Quest');
+  const body = encodeURIComponent(parentInviteText(currentParentInvite));
+  window.location.href = `mailto:${encodeURIComponent(field.value.trim())}?subject=${subject}&body=${body}`;
+});
+$('inviteCopyButton').addEventListener('click',()=>busy(async()=>{
+  if (!currentParentInvite) throw Error('Bitte zuerst einen Einladungscode erzeugen.');
+  await navigator.clipboard.writeText(parentInviteText(currentParentInvite));
+  message('Einladung kopiert.');
+}));
 $('memberForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await createChild(f.get('name'),f.get('username'),f.get('password'));e.target.reset();await refresh();message('Kinderkonto erstellt. Zugangsdaten sicher aufbewahren.');});});
 $('taskForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_task',null,{title:f.get('title'),memberId:f.get('memberId'),type:f.get('type'),repeat:f.get('repeat'),xp:Number(f.get('xp')),coins:Number(f.get('coins'))});e.target.reset();await refresh();});});
 $('rewardForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_reward',null,{title:f.get('title'),cost:Number(f.get('cost'))});e.target.reset();await refresh();});});
