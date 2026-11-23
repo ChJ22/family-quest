@@ -21,9 +21,14 @@ async function refresh() {
   if (state && !state.needsFamily) render();
 }
 function taskHtml(t) {
-  const m=member(t.memberId);
+  const m=member(t.assignment_mode==='shared'?t.claimed_by:t.memberId);
   const status={open:'Offen',pending:'Wartet auf Bestätigung',proposed:'Vorschlag wartet auf Freigabe',done:'Erledigt'}[t.status];
-  return `<div class="task"><div><strong>${esc(t.title)}</strong><small>${esc(m?.name || 'Unbekannt')} · ${t.type==='bonus'?'Bonus':'Regulär'} · ${t.repeat==='daily'?'Täglich':t.repeat==='weekly'?'Wöchentlich':'Einmalig'} · ${m?.role==='child'?t.xp+' XP · ':''}${t.coins} Münzen</small><span class="pill">${status}</span></div><div class="actions">${t.status==='open'&&(parent()||t.memberId===actor().id)?`<button data-action="complete" data-id="${t.id}">Erledigt melden</button>`:''}${parent()&&t.status==='pending'?`<button data-action="approve" data-id="${t.id}">Bestätigen</button><button class="secondary" data-action="reject" data-id="${t.id}">Ablehnen</button>`:''}${parent()&&t.status==='proposed'?`<button data-action="acceptProposal" data-id="${t.id}">Vorschlag freigeben</button><button class="secondary" data-action="rejectProposal" data-id="${t.id}">Ablehnen</button>`:''}${parent()?`<button class="danger" data-action="deleteTask" data-id="${t.id}">Löschen</button>`:''}</div></div>`;
+  const shared=t.assignment_mode==='shared';
+  const claim=shared && t.status==='open' && !t.claimed_by && !parent()
+    ? `<button data-action="claim" data-id="${t.id}">Übernehmen</button>`:'';
+  const release=shared && t.status==='open' && t.claimed_by===actor().id
+    ? `<button class="secondary" data-action="release" data-id="${t.id}">Zurückgeben</button>`:'';
+  return `<div class="task"><div><strong>${esc(t.title)}</strong><small>${esc(t.assignment_mode==='shared'?(m?.name || 'Für alle Kinder'): (m?.name || 'Unbekannt'))} · ${t.type==='bonus'?'Bonus':'Regulär'} · ${t.repeat==='daily'?'Täglich':t.repeat==='weekly'?'Wöchentlich':'Einmalig'} · ${m?.role==='child'?t.xp+' XP · ':''}${t.coins} Münzen</small><span class="pill">${status}</span></div><div class="actions">${claim}${release}${t.status==='open'&&(shared?(!!t.claimed_by&&(parent()||t.claimed_by===actor().id)):(parent()||t.memberId===actor().id))?`<button data-action="complete" data-id="${t.id}">Erledigt melden</button>`:''}${parent()&&t.status==='pending'?`<button data-action="approve" data-id="${t.id}">Bestätigen</button><button class="secondary" data-action="reject" data-id="${t.id}">Ablehnen</button>`:''}${parent()&&t.status==='proposed'?`<button data-action="acceptProposal" data-id="${t.id}">Vorschlag freigeben</button><button class="secondary" data-action="rejectProposal" data-id="${t.id}">Ablehnen</button>`:''}${parent()?`<button class="danger" data-action="deleteTask" data-id="${t.id}">Löschen</button>`:''}</div></div>`;
 }
 function render() {
   const a=actor();
@@ -37,6 +42,10 @@ function render() {
   $('rewardSubmit').textContent = parent()?'Belohnung hinzufügen':'Belohnung vorschlagen';
   $('taskMember').innerHTML = opts();
   $('taskMember').value = state.members.some(m=>m.id===$('taskMember').dataset.selected)?$('taskMember').dataset.selected:a.id;
+  $('taskAssignmentWrap').hidden = !parent();
+  $('taskWeeklyWrap').hidden = !parent() || $('taskRepeat').value !== 'weekly';
+  $('taskMember').required = $('taskAssignment').value !== 'shared';
+  $('taskMember').disabled = parent() && $('taskAssignment').value === 'shared';
   $('taskPoints').hidden = !parent();
   $('taskType').disabled = !parent(); $('taskRepeat').disabled = !parent();
   const open=state.tasks.filter(t=>t.status!=='done');
@@ -130,8 +139,10 @@ $('memberForm').addEventListener('submit',async e=>{
     result.textContent='Fehler: '+(err.message || 'Unbekannter Fehler');
   } finally { button.disabled=false; }
 });
-$('taskForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_task',null,{title:f.get('title'),memberId:f.get('memberId'),type:f.get('type'),repeat:f.get('repeat'),xp:Number(f.get('xp')),coins:Number(f.get('coins'))});e.target.reset();await refresh();});});
+$('taskForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_task',null,{title:f.get('title'),memberId:f.get('memberId'),type:f.get('type'),repeat:f.get('repeat'),assignmentMode:parent()?f.get('assignmentMode'):'individual',repeatTargetPerWeek:parent()&&f.get('repeat')==='weekly'?Number(f.get('repeatTargetPerWeek')):null,xp:Number(f.get('xp')),coins:Number(f.get('coins'))});e.target.reset();await refresh();});});
 $('rewardForm').addEventListener('submit',e=>{e.preventDefault();busy(async()=>{const f=new FormData(e.target);await action('create_reward',null,{title:f.get('title'),cost:Number(f.get('cost'))});e.target.reset();await refresh();});});
+$('taskRepeat').addEventListener('change',()=>{if(state)render();});
+$('taskAssignment').addEventListener('change',()=>{if(state)render();});
 $('taskMember').addEventListener('change',e=>{e.target.dataset.selected=e.target.value;});
 $('rewardMember').addEventListener('change',e=>{e.target.dataset.selected=e.target.value;render();});
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button,section').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active');}));
