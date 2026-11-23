@@ -1,0 +1,114 @@
+-- FAMILY QUEST: documentation snapshot of column types and constraints.
+-- READ ONLY: this file is NOT a complete CREATE TABLE schema or a restore script.
+-- Export date: 2026-11-23
+
+-- families.id | uuid | nullable=NO | default=gen_random_uuid()
+-- families.name | text | nullable=NO | default=null
+-- families.created_at | timestamp with time zone | nullable=NO | default=now()
+-- families.invite_code | text | nullable=YES | default=null
+-- families.invite_expires_at | timestamp with time zone | nullable=YES | default=null
+-- history.id | uuid | nullable=NO | default=gen_random_uuid()
+-- history.family_id | uuid | nullable=NO | default=null
+-- history.member_id | uuid | nullable=NO | default=null
+-- history.kind | text | nullable=NO | default=null
+-- history.task_id | uuid | nullable=YES | default=null
+-- history.reward_id | uuid | nullable=YES | default=null
+-- history.xp | integer | nullable=NO | default=0
+-- history.coins | integer | nullable=NO | default=0
+-- history.cost | integer | nullable=NO | default=0
+-- history.created_at | timestamp with time zone | nullable=NO | default=now()
+-- members.id | uuid | nullable=NO | default=gen_random_uuid()
+-- members.family_id | uuid | nullable=NO | default=null
+-- members.user_id | uuid | nullable=YES | default=null
+-- members.name | text | nullable=NO | default=null
+-- members.role | text | nullable=NO | default=null
+-- members.xp | integer | nullable=NO | default=0
+-- members.career_xp | integer | nullable=NO | default=0
+-- members.coins | integer | nullable=NO | default=0
+-- members.created_at | timestamp with time zone | nullable=NO | default=now()
+-- members.username | text | nullable=YES | default=null
+-- members.xp_month | text | nullable=NO | default=to_char((now() AT TIME ZONE 'Europe/Berlin'::text), 'YYYY-MM'::text)
+-- monthly_archive.id | uuid | nullable=NO | default=gen_random_uuid()
+-- monthly_archive.family_id | uuid | nullable=NO | default=null
+-- monthly_archive.member_id | uuid | nullable=NO | default=null
+-- monthly_archive.month | text | nullable=NO | default=null
+-- monthly_archive.xp | integer | nullable=NO | default=null
+-- monthly_archive.level | integer | nullable=NO | default=null
+-- rewards.id | uuid | nullable=NO | default=gen_random_uuid()
+-- rewards.family_id | uuid | nullable=NO | default=null
+-- rewards.created_by | uuid | nullable=YES | default=null
+-- rewards.title | text | nullable=NO | default=null
+-- rewards.cost | integer | nullable=NO | default=null
+-- rewards.status | text | nullable=NO | default='proposed'::text
+-- rewards.created_at | timestamp with time zone | nullable=NO | default=now()
+-- tasks.id | uuid | nullable=NO | default=gen_random_uuid()
+-- tasks.family_id | uuid | nullable=NO | default=null
+-- tasks.member_id | uuid | nullable=NO | default=null
+-- tasks.created_by | uuid | nullable=YES | default=null
+-- tasks.title | text | nullable=NO | default=null
+-- tasks.type | text | nullable=NO | default='regular'::text
+-- tasks.repeat | text | nullable=NO | default='once'::text
+-- tasks.xp | integer | nullable=NO | default=10
+-- tasks.coins | integer | nullable=NO | default=5
+-- tasks.status | text | nullable=NO | default='open'::text
+-- tasks.created_at | timestamp with time zone | nullable=NO | default=now()
+
+-- CONSTRAINTS AND INDEXES (reference only)
+-- CONSTRAINT families families_name_check: CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 80)))
+-- CONSTRAINT families families_pkey: PRIMARY KEY (id)
+-- INDEX families families_pkey: CREATE UNIQUE INDEX families_pkey ON public.families USING btree (id)
+-- CONSTRAINT history history_coins_check: CHECK ((coins >= 0))
+-- CONSTRAINT history history_cost_check: CHECK ((cost >= 0))
+-- CONSTRAINT history history_family_id_fkey: FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
+-- CONSTRAINT history history_kind_check: CHECK ((kind = ANY (ARRAY['task'::text, 'reward'::text])))
+-- CONSTRAINT history history_member_id_fkey: FOREIGN KEY (member_id) REFERENCES members(id)
+-- CONSTRAINT history history_pkey: PRIMARY KEY (id)
+-- CONSTRAINT history history_reward_id_fkey: FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE SET NULL
+-- CONSTRAINT history history_task_id_fkey: FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL
+-- CONSTRAINT history history_xp_check: CHECK ((xp >= 0))
+-- INDEX history history_family_idx: CREATE INDEX history_family_idx ON public.history USING btree (family_id)
+-- INDEX history history_pkey: CREATE UNIQUE INDEX history_pkey ON public.history USING btree (id)
+-- CONSTRAINT members members_career_xp_check: CHECK ((career_xp >= 0))
+-- CONSTRAINT members members_coins_check: CHECK ((coins >= 0))
+-- CONSTRAINT members members_family_id_fkey: FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
+-- CONSTRAINT members members_name_check: CHECK (((length(TRIM(BOTH FROM name)) >= 1) AND (length(TRIM(BOTH FROM name)) <= 40)))
+-- CONSTRAINT members members_pkey: PRIMARY KEY (id)
+-- CONSTRAINT members members_role_check: CHECK ((role = ANY (ARRAY['parent'::text, 'child'::text])))
+-- CONSTRAINT members members_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
+-- CONSTRAINT members members_user_id_key: UNIQUE (user_id)
+-- CONSTRAINT members members_xp_check: CHECK ((xp >= 0))
+-- CONSTRAINT members parents_have_no_xp: CHECK (((role <> 'parent'::text) OR (xp = 0)))
+-- INDEX members members_family_idx: CREATE INDEX members_family_idx ON public.members USING btree (family_id)
+-- INDEX members members_pkey: CREATE UNIQUE INDEX members_pkey ON public.members USING btree (id)
+-- INDEX members members_user_id_key: CREATE UNIQUE INDEX members_user_id_key ON public.members USING btree (user_id)
+-- INDEX members members_username_unique: CREATE UNIQUE INDEX members_username_unique ON public.members USING btree (lower(username)) WHERE (username IS NOT NULL)
+-- CONSTRAINT monthly_archive monthly_archive_family_id_fkey: FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
+-- CONSTRAINT monthly_archive monthly_archive_level_check: CHECK (((level >= 1) AND (level <= 4)))
+-- CONSTRAINT monthly_archive monthly_archive_member_id_fkey: FOREIGN KEY (member_id) REFERENCES members(id)
+-- CONSTRAINT monthly_archive monthly_archive_member_id_month_key: UNIQUE (member_id, month)
+-- CONSTRAINT monthly_archive monthly_archive_month_check: CHECK ((month ~ '^\d{4}-(0[1-9]|1[0-2])$'::text))
+-- CONSTRAINT monthly_archive monthly_archive_pkey: PRIMARY KEY (id)
+-- CONSTRAINT monthly_archive monthly_archive_xp_check: CHECK ((xp >= 0))
+-- INDEX monthly_archive monthly_archive_family_idx: CREATE INDEX monthly_archive_family_idx ON public.monthly_archive USING btree (family_id)
+-- INDEX monthly_archive monthly_archive_member_id_month_key: CREATE UNIQUE INDEX monthly_archive_member_id_month_key ON public.monthly_archive USING btree (member_id, month)
+-- INDEX monthly_archive monthly_archive_pkey: CREATE UNIQUE INDEX monthly_archive_pkey ON public.monthly_archive USING btree (id)
+-- CONSTRAINT rewards rewards_cost_check: CHECK (((cost >= 1) AND (cost <= 10000)))
+-- CONSTRAINT rewards rewards_created_by_fkey: FOREIGN KEY (created_by) REFERENCES members(id)
+-- CONSTRAINT rewards rewards_family_id_fkey: FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
+-- CONSTRAINT rewards rewards_pkey: PRIMARY KEY (id)
+-- CONSTRAINT rewards rewards_status_check: CHECK ((status = ANY (ARRAY['proposed'::text, 'active'::text])))
+-- CONSTRAINT rewards rewards_title_check: CHECK (((length(TRIM(BOTH FROM title)) >= 1) AND (length(TRIM(BOTH FROM title)) <= 100)))
+-- INDEX rewards rewards_family_idx: CREATE INDEX rewards_family_idx ON public.rewards USING btree (family_id)
+-- INDEX rewards rewards_pkey: CREATE UNIQUE INDEX rewards_pkey ON public.rewards USING btree (id)
+-- CONSTRAINT tasks tasks_coins_check: CHECK (((coins >= 0) AND (coins <= 1000)))
+-- CONSTRAINT tasks tasks_created_by_fkey: FOREIGN KEY (created_by) REFERENCES members(id)
+-- CONSTRAINT tasks tasks_family_id_fkey: FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
+-- CONSTRAINT tasks tasks_member_id_fkey: FOREIGN KEY (member_id) REFERENCES members(id)
+-- CONSTRAINT tasks tasks_pkey: PRIMARY KEY (id)
+-- CONSTRAINT tasks tasks_repeat_check: CHECK ((repeat = ANY (ARRAY['once'::text, 'daily'::text, 'weekly'::text])))
+-- CONSTRAINT tasks tasks_status_check: CHECK ((status = ANY (ARRAY['open'::text, 'proposed'::text, 'pending'::text, 'done'::text])))
+-- CONSTRAINT tasks tasks_title_check: CHECK (((length(TRIM(BOTH FROM title)) >= 1) AND (length(TRIM(BOTH FROM title)) <= 100)))
+-- CONSTRAINT tasks tasks_type_check: CHECK ((type = ANY (ARRAY['regular'::text, 'bonus'::text])))
+-- CONSTRAINT tasks tasks_xp_check: CHECK (((xp >= 0) AND (xp <= 1000)))
+-- INDEX tasks tasks_family_idx: CREATE INDEX tasks_family_idx ON public.tasks USING btree (family_id)
+-- INDEX tasks tasks_pkey: CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)

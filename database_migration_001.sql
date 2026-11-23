@@ -1,0 +1,5 @@
+-- FAMILY QUEST / Migration 001 - PLANNING PLACEHOLDER
+-- NOT READY TO EXECUTE. No database changes are included yet.
+-- Planned: claim shared tasks, recurrence, approvals, profile fields, account recovery.
+-- Before implementation: review child Edge Function and authentication mappings,
+-- finalize SQL transaction, migration rollback, and test against backup.
